@@ -1,0 +1,13 @@
+train: train/images
+val: val/images
+test: test/images
+
+nc: 5
+names: ['Feeding', 'Lateral_lying', 'Sitting', 'Standing', 'Sternal_lying']
+
+roboflow:
+  workspace: msu-mvymy
+  project: pig-posture-detection
+  version: 3
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/msu-mvymy/pig-posture-detection/dataset/3

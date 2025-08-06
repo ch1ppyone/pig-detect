@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Система мониторинга свиней</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="manifest" href="/static/manifest.json"> <!-- Поддержка PWA -->
+  <style>
+    :root {
+      --bg-color: #f8f9fa;
+      --card-bg: #fff;
+      --text-color: #000;
+      --kpi-bg: linear-gradient(135deg, #6e8efb, #a777e3);
+    }
+    [data-theme="dark"] {
+      --bg-color: #343a40;
+      --card-bg: #495057;
+      --text-color: #fff;
+      --kpi-bg: linear-gradient(135deg, #5a72d1, #8c5db6);
+    }
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      font-family: 'Arial', sans-serif;
+      transition: all 0.3s;
+    }
+    .dashboard-card {
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      background-color: var(--card-bg);
+      transition: transform 0.2s;
+    }
+    .dashboard-card:hover {
+      transform: translateY(-5px);
+    }
+    .kpi-card {
+      background: var(--kpi-bg);
+      color: white;
+      text-align: center;
+      padding: 20px;
+      border-radius: 10px;
+    }
+    .kpi-value {
+      font-size: 2rem;
+      font-weight: bold;
+    }
+    #videoFeed {
+      border-radius: 10px;
+      border: 2px solid #dee2e6;
+      max-width: 100%;
+      loading: lazy; /* Lazy loading для видео */
+    }
+    #videoError {
+      display: none;
+      color: red;
+      text-align: center;
+      margin-top: 10px;
+    }
+    #trainingLog {
+      height: 300px;
+      overflow-y: auto;
+      background-color: var(--card-bg);
+      border-radius: 10px;
+      padding: 15px;
+    }
+    .modal-content {
+      border-radius: 15px;
+      background-color: var(--card-bg);
+    }
+    .btn-custom {
+      background-color: #28a745;
+      border-color: #28a745;
+      transition: background-color 0.3s;
+    }
+    .btn-custom:hover {
+      background-color: #218838;
+    }
+    #previewModal video, #previewModal img {
+      max-width: 100%;
+      height: auto;
+      cursor: pointer;
+      loading: lazy; /* Lazy loading для превью */
+    }
+    #imagePreviewModal img {
+      max-width: 100%;
+      height: auto;
+      loading: lazy;
+    }
+    .pagination-container {
+      overflow-x: auto;
+      white-space: nowrap;
+      padding-bottom: 10px;
+    }
+    .pagination {
+      display: inline-flex;
+      flex-wrap: nowrap;
+    }
+    #darkModeToggle {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+  <button id="darkModeToggle" class="btn btn-secondary">🌙 Dark Mode</button>
+  <div class="container-fluid py-4">
+    <h1 class="mb-4 text-center">Система мониторинга свиней</h1>
+
+    <!-- Панель управления -->
+    <div class="row mb-4">
+      <div class="col-auto">
+        <button class="btn btn-custom me-2" data-bs-toggle="modal" data-bs-target="#stateModal">Управление состояниями</button>
+        <button class="btn btn-custom" data-bs-toggle="modal" data-bs-target="#trainModal">Обучение</button>
+      </div>
+    </div>
+
+    <!-- Панель KPI -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <div class="kpi-card">
+          <h5>Общее количество свиней</h5>
+          <div class="kpi-value" id="totalPigs">0</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="kpi-card">
+          <h5>Процент активных свиней</h5>
+          <div class="kpi-value" id="activePigs">0%</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="kpi-card">
+          <h5>Среднее время в состоянии</h5>
+          <div class="kpi-value" id="avgStateTime">0 мин</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Форма выбора источника видео -->
+    <div class="row mb-4">
+      <div class="col-12 col-md-6 col-lg-4">
+        <form id="videoSourceForm" class="input-group">
+          <select name="source" id="source" class="form-select">
+            {% for source, type in sources %}
+            <option value="{{ source }}" {% if source == current_source %}selected{% endif %}>{{ source }} ({{ type }})</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn btn-custom">Сменить источник</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="alert-area" class="mb-4"></div>
+
+    <!-- Основная сетка -->
+    <div class="row g-4">
+      <!-- Видео поток -->
+      <div class="col-12 col-lg-6">
+        <div class="dashboard-card p-3">
+          <h3>Видео поток</h3>
+          <img id="videoFeed" class="img-fluid" src="" alt="Видео поток">
+          <div id="videoError">Ошибка загрузки видеопотока</div>
+        </div>
+      </div>
+
+      <!-- Графики состояний -->
+      <div class="col-12 col-lg-6">
+        <div class="dashboard-card p-3">
+          <h3>Состояния свиней</h3>
+          <div class="mb-3">
+            <label for="chartTrackFilter" class="form-label">Выберите ID свиньи:</label>
+            <select id="chartTrackFilter" class="form-select"></select>
+          </div>
+          <div id="stateChart" style="height: 300px;"></div>
+          <h3 class="mt-4">Длительность состояний</h3>
+          <div id="durationChart" style="height: 300px;"></div>
+        </div>
+      </div>
+
+      <!-- Лог событий -->
+      <div class="col-12">
+        <div class="dashboard-card p-3">
+          <h3>Лог событий</h3>
+          <div class="row g-3 mb-3">
+            <div class="col-md-4">
+              <input type="text" id="filterTime" class="form-control" placeholder="Фильтр по времени (YYYY-MM-DD HH:MM:SS)">
+            </div>
+            <div class="col-md-4">
+              <input type="text" id="filterTrack" class="form-control" placeholder="Фильтр по ID свиньи">
+            </div>
+            <div class="col-md-4">
+              <select id="sortTrack" class="form-select">
+                <option value="">Выберите ID свиньи</option>
+              </select>
+            </div>
+          </div>
+          <table class="table table-striped" id="logTable">
+            <thead>
+              <tr>
+                <th>Время</th>
+                <th>ID свиньи</th>
+                <th>Сообщение</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно для управления состояниями -->
+  <div class="modal fade" id="stateModal" tabindex="-1" aria-labelledby="stateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="stateModalLabel">Управление состояниями</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="stateModalBody">
+          <button class="btn btn-success mb-3" id="addStateBtn">Добавить состояние</button>
+          <table class="table table-striped" id="stateTable">
+            <thead>
+              <tr>
+                <th>Код</th>
+                <th>Описание</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно для управления датасетом -->
+  <div class="modal fade" id="datasetModal" tabindex="-1" aria-labelledby="datasetModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="datasetModalLabel">Управление датасетом</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="uploadVideoForm" enctype="multipart/form-data">
+            <div class="mb-3">
+              <label for="videoFile" class="form-label">Загрузить файл (MP4, JPG, PNG, BMP):</label>
+              <input type="file" class="form-control" id="videoFile" name="video" accept=".mp4,.jpg,.jpeg,.png,.bmp">
+            </div>
+            <button type="submit" class="btn btn-primary">Загрузить</button>
+            <div class="progress mt-2" id="uploadProgress" style="display: none;">
+              <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+          </form>
+          <table class="table table-striped mt-3" id="videoTable">
+            <thead>
+              <tr>
+                <th>Имя файла</th>
+                <th>Тип</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <nav aria-label="Пагинация файлов">
+            <div class="pagination-container">
+              <ul class="pagination justify-content-center" id="pagination"></ul>
+            </div>
+          </nav>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="backToStateModal">Назад</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно для предпросмотра -->
+  <div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="previewModalLabel">Предпросмотр</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <video controls id="previewVideo" style="display: none;"></video>
+          <img id="previewImage" style="display: none;" alt="Предпросмотр">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="backToDatasetModal">Назад</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно для увеличенного изображения -->
+  <div class="modal fade" id="imagePreviewModal" tabindex="-1" aria-labelledby="imagePreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="imagePreviewModalLabel">Увеличенное изображение</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <img id="enlargedImage" alt="Увеличенное изображение">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно для обучения -->
+  <div class="modal fade" id="trainModal" tabindex="-1" aria-labelledby="trainModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="trainModalLabel">Обучение модели</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div id="trainingLog" class="border p-3"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary" id="startTrainingBtn">Начать обучение</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"></script>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/static/js/main.js"></script>
+</body>
+</html>

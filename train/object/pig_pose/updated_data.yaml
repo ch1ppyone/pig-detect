@@ -1,0 +1,16 @@
+names:
+- Feeding
+- Lateral_lying
+- Sitting
+- Standing
+- Sternal_lying
+nc: 5
+roboflow:
+  license: CC BY 4.0
+  project: pig-posture-detection
+  url: https://universe.roboflow.com/msu-mvymy/pig-posture-detection/dataset/3
+  version: 3
+  workspace: msu-mvymy
+test: /home/ch1/pig-detect/train/object/pig_pose/test/images
+train: /home/ch1/pig-detect/train/object/pig_pose/train/images
+val: /home/ch1/pig-detect/train/object/pig_pose/val/images

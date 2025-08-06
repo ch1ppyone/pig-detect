@@ -1,0 +1,10 @@
+flask
+flask-socketio
+ultralytics
+torch
+torchvision
+opencv-python
+numpy
+python-dotenv
+tqdm
+pyyaml
