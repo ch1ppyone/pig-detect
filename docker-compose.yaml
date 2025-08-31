@@ -1,20 +1,75 @@
 version: '3.8'
+
 services:
-  app:
-    build: .
+  pig-detect:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: pig-detect-app
+    restart: unless-stopped
     ports:
       - "9001:9001"
     volumes:
-      - .:/app
-      - ./models:/app/models
-      - ./test_data:/app/test_data
-      - ./train:/app/train
+      # Persistent data
+      - ./models:/app/models:ro
+      - ./uploads:/app/uploads
+      - ./pig_states.db:/app/pig_states.db
+      - ./logs:/app/logs
     environment:
       - PYTHONUNBUFFERED=1
+      - FLASK_ENV=production
       - DB_PATH=/app/pig_states.db
-    depends_on:
-      - db
-  db:
-    image: sqlite:3
-    volumes:
-      - ./pig_states.db:/pig_states.db
+      - LOG_FILE=/app/logs/app.log
+      - DEVICE=cpu
+      - HOST=0.0.0.0
+      - PORT=9001
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import requests; requests.get('http://localhost:9001', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - pig-network
+
+  # Optional: GPU version (uncomment if needed)
+  # pig-detect-gpu:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #     target: production
+  #   container_name: pig-detect-gpu
+  #   restart: unless-stopped
+  #   ports:
+  #     - "9001:9001"
+  #   volumes:
+  #     - ./models:/app/models:ro
+  #     - ./uploads:/app/uploads
+  #     - ./pig_states.db:/app/pig_states.db
+  #     - ./logs:/app/logs
+  #   environment:
+  #     - PYTHONUNBUFFERED=1
+  #     - FLASK_ENV=production
+  #     - DB_PATH=/app/pig_states.db
+  #     - LOG_FILE=/app/logs/app.log
+  #     - DEVICE=cuda
+  #     - CUDA_VISIBLE_DEVICES=0
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [gpu]
+  #   networks:
+  #     - pig-network
+
+networks:
+  pig-network:
+    driver: bridge
+
+volumes:
+  models_data:
+  uploads_data:
+  logs_data:

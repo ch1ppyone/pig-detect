@@ -185,30 +185,19 @@ cython_debug/
 *.jpeg
 *.png
 *.bmp
-*.db
 *.db-journal
 *.log
 *.tmp
 *.cache
 
+
 # Models (large files)
-models/*.pt
-models/*.pth
 models/*.onnx
 models/*.weights
 
 # Uploads directory
 uploads/
 
-# Test data (keep structure, ignore content)
-test_data/*.mp4
-test_data/*.avi
-test_data/*.mov
-test_data/*.mkv
-test_data/*.jpg
-test_data/*.jpeg
-test_data/*.png
-test_data/*.bmp
 
 # Training data - object detection dataset (ignore completely)
 train/object/

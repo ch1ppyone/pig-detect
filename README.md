@@ -379,23 +379,86 @@ curl -X POST http://localhost:9001/api/resume
 
 ## 🐳 Docker
 
-### Сборка образа:
+### Быстрый запуск с Docker Compose:
 ```bash
-docker build -t pig-detect .
-```
-
-### Запуск контейнера:
-```bash
-docker run -p 9001:9001 \
-    -v $(pwd)/models:/app/models \
-    -v $(pwd)/uploads:/app/uploads \
-    --gpus all \
-    pig-detect
-```
-
-### Docker Compose:
-```bash
+# Production (CPU)
 docker-compose up -d
+
+# Просмотр логов
+docker-compose logs -f pig-detect
+
+# Остановка
+docker-compose down
+```
+
+### Сборка оптимизированного образа:
+```bash
+# Production образ (минимальный размер)
+docker build -t pig-detect:prod .
+
+# Development образ (с инструментами)
+docker build -f Dockerfile.dev -t pig-detect:dev .
+```
+
+### Запуск контейнера вручную:
+
+#### CPU версия:
+```bash
+docker run -d \
+    --name pig-detect \
+    -p 9001:9001 \
+    -v $(pwd)/models:/app/models:ro \
+    -v $(pwd)/uploads:/app/uploads \
+    -v $(pwd)/pig_states.db:/app/pig_states.db \
+    -v $(pwd)/logs:/app/logs \
+    -e DEVICE=cpu \
+    pig-detect:prod
+```
+
+#### GPU версия:
+```bash
+docker run -d \
+    --name pig-detect-gpu \
+    -p 9001:9001 \
+    --gpus all \
+    -v $(pwd)/models:/app/models:ro \
+    -v $(pwd)/uploads:/app/uploads \
+    -v $(pwd)/pig_states.db:/app/pig_states.db \
+    -v $(pwd)/logs:/app/logs \
+    -e DEVICE=cuda \
+    -e CUDA_VISIBLE_DEVICES=0 \
+    pig-detect:prod
+```
+
+### Development режим:
+```bash
+# Запуск development контейнера
+docker run -it \
+    -p 9001:9001 \
+    -p 8888:8888 \
+    -v $(pwd):/app \
+    -e FLASK_DEBUG=1 \
+    pig-detect:dev bash
+
+# Внутри контейнера
+python3 run.py --device cuda
+# или
+jupyter lab --ip=0.0.0.0 --port=8888 --allow-root
+```
+
+### Мониторинг и обслуживание:
+```bash
+# Проверка состояния
+docker-compose ps
+
+# Логи в реальном времени
+docker-compose logs -f pig-detect
+
+# Статистика ресурсов
+docker stats pig-detect-app
+
+# Очистка неиспользуемых образов
+docker system prune -a
 ```
 
 ## ⚙️ Конфигурация

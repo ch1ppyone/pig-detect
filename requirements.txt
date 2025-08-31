@@ -1,22 +1,23 @@
-flask
-flask-socketio
-flask-login
-flask-session
-werkzeug
-ultralytics
-torch
-torchvision
-opencv-python
-numpy
-python-dotenv
-tqdm
-pyyaml
-Pillow
-# Валидация
-pydantic>=2.0.0
-pydantic[email]
-# Дополнительные утилиты
-python-multipart
-email-validator
-# Аугментация данных
-albumentations
+# Core Web Framework
+flask==3.0.0
+flask-socketio==5.3.6
+flask-login==0.6.3
+werkzeug==3.0.1
+
+# Machine Learning
+torch==2.1.1
+torchvision==0.16.1
+ultralytics==8.0.206
+
+# Computer Vision & Image Processing
+opencv-python==4.8.1.78
+numpy==1.24.4
+Pillow==10.1.0
+
+# Configuration & Utilities  
+python-dotenv==1.0.0
+pyyaml==6.0.1
+tqdm==4.66.1
+
+# Data Augmentation (for training)
+albumentations==1.3.1
