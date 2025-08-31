@@ -5,278 +5,448 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Система мониторинга свиней</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="manifest" href="/static/manifest.json"> <!-- Поддержка PWA -->
-  <style>
-    :root {
-      --bg-color: #f8f9fa;
-      --card-bg: #fff;
-      --text-color: #000;
-      --kpi-bg: linear-gradient(135deg, #6e8efb, #a777e3);
-    }
-    [data-theme="dark"] {
-      --bg-color: #343a40;
-      --card-bg: #495057;
-      --text-color: #fff;
-      --kpi-bg: linear-gradient(135deg, #5a72d1, #8c5db6);
-    }
-    body {
-      background-color: var(--bg-color);
-      color: var(--text-color);
-      font-family: 'Arial', sans-serif;
-      transition: all 0.3s;
-    }
-    .dashboard-card {
-      border-radius: 10px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-      background-color: var(--card-bg);
-      transition: transform 0.2s;
-    }
-    .dashboard-card:hover {
-      transform: translateY(-5px);
-    }
-    .kpi-card {
-      background: var(--kpi-bg);
-      color: white;
-      text-align: center;
-      padding: 20px;
-      border-radius: 10px;
-    }
-    .kpi-value {
-      font-size: 2rem;
-      font-weight: bold;
-    }
-    #videoFeed {
-      border-radius: 10px;
-      border: 2px solid #dee2e6;
-      max-width: 100%;
-      loading: lazy; /* Lazy loading для видео */
-    }
-    #videoError {
-      display: none;
-      color: red;
-      text-align: center;
-      margin-top: 10px;
-    }
-    #trainingLog {
-      height: 300px;
-      overflow-y: auto;
-      background-color: var(--card-bg);
-      border-radius: 10px;
-      padding: 15px;
-    }
-    .modal-content {
-      border-radius: 15px;
-      background-color: var(--card-bg);
-    }
-    .btn-custom {
-      background-color: #28a745;
-      border-color: #28a745;
-      transition: background-color 0.3s;
-    }
-    .btn-custom:hover {
-      background-color: #218838;
-    }
-    #previewModal video, #previewModal img {
-      max-width: 100%;
-      height: auto;
-      cursor: pointer;
-      loading: lazy; /* Lazy loading для превью */
-    }
-    #imagePreviewModal img {
-      max-width: 100%;
-      height: auto;
-      loading: lazy;
-    }
-    .pagination-container {
-      overflow-x: auto;
-      white-space: nowrap;
-      padding-bottom: 10px;
-    }
-    .pagination {
-      display: inline-flex;
-      flex-wrap: nowrap;
-    }
-    #darkModeToggle {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      z-index: 1000;
-    }
-  </style>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/styles.css">
+  <link rel="manifest" href="/static/manifest.json">
 </head>
 <body>
-  <button id="darkModeToggle" class="btn btn-secondary">🌙 Dark Mode</button>
-  <div class="container-fluid py-4">
-    <h1 class="mb-4 text-center">Система мониторинга свиней</h1>
+  <!-- Dark Mode Toggle -->
+  <button id="darkModeToggle" class="btn btn-outline-secondary" title="Переключить тему">
+    <i class="bi bi-moon-stars"></i>
+  </button>
 
-    <!-- Панель управления -->
-    <div class="row mb-4">
-      <div class="col-auto">
-        <button class="btn btn-custom me-2" data-bs-toggle="modal" data-bs-target="#stateModal">Управление состояниями</button>
-        <button class="btn btn-custom" data-bs-toggle="modal" data-bs-target="#trainModal">Обучение</button>
-      </div>
-    </div>
-
-    <!-- Панель KPI -->
-    <div class="row g-3 mb-4">
-      <div class="col-md-4">
-        <div class="kpi-card">
-          <h5>Общее количество свиней</h5>
-          <div class="kpi-value" id="totalPigs">0</div>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="kpi-card">
-          <h5>Процент активных свиней</h5>
-          <div class="kpi-value" id="activePigs">0%</div>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="kpi-card">
-          <h5>Среднее время в состоянии</h5>
-          <div class="kpi-value" id="avgStateTime">0 мин</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Форма выбора источника видео -->
-    <div class="row mb-4">
-      <div class="col-12 col-md-6 col-lg-4">
-        <form id="videoSourceForm" class="input-group">
-          <select name="source" id="source" class="form-select">
-            {% for source, type in sources %}
-            <option value="{{ source }}" {% if source == current_source %}selected{% endif %}>{{ source }} ({{ type }})</option>
-            {% endfor %}
-          </select>
-          <button type="submit" class="btn btn-custom">Сменить источник</button>
-        </form>
-      </div>
-    </div>
-
-    <div id="alert-area" class="mb-4"></div>
-
-    <!-- Основная сетка -->
-    <div class="row g-4">
-      <!-- Видео поток -->
-      <div class="col-12 col-lg-6">
-        <div class="dashboard-card p-3">
-          <h3>Видео поток</h3>
-          <img id="videoFeed" class="img-fluid" src="" alt="Видео поток">
-          <div id="videoError">Ошибка загрузки видеопотока</div>
-        </div>
-      </div>
-
-      <!-- Графики состояний -->
-      <div class="col-12 col-lg-6">
-        <div class="dashboard-card p-3">
-          <h3>Состояния свиней</h3>
-          <div class="mb-3">
-            <label for="chartTrackFilter" class="form-label">Выберите ID свиньи:</label>
-            <select id="chartTrackFilter" class="form-select"></select>
+  <div class="container-fluid px-4">
+    <!-- Header -->
+    <div class="main-header">
+      <div class="container">
+        <div class="row align-items-center">
+          <div class="col-md-8">
+            <h1 class="mb-0 fw-bold">
+              🐷 <i class="bi bi-camera-video me-2"></i>
+              Система мониторинга свиней
+            </h1>
+            <p class="mb-0 mt-2 opacity-75">
+              🤖 Интеллектуальный анализ поведения животных с ИИ
+            </p>
           </div>
-          <div id="stateChart" style="height: 300px;"></div>
-          <h3 class="mt-4">Длительность состояний</h3>
-          <div id="durationChart" style="height: 300px;"></div>
+          <div class="col-md-4 text-end">
+            <div class="d-flex align-items-center justify-content-end">
+              <div class="status-indicator status-online me-2"></div>
+              <small class="text-white-50">🟢 Система активна</small>
+            </div>
+          </div>
         </div>
       </div>
+    </div>
 
-      <!-- Лог событий -->
+    <!-- User Info & Quick Actions -->
+    <div class="user-info">
+      <div class="row align-items-center">
+        <div class="col-md-6">
+          <div class="d-flex align-items-center">
+            <div class="user-avatar me-3">
+              👤
+            </div>
+            <div>
+              <small class="text-muted d-block">👋 Добро пожаловать</small>
+              <strong>{{ current_user.username }}</strong>
+              {% if current_user.is_admin %}
+                <span class="badge bg-warning text-dark ms-2">⭐ Администратор</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6 text-end">
+          <div class="quick-actions">
+            {% if current_user.is_admin %}
+              <a href="{{ url_for('auth.register') }}" class="btn btn-outline-custom btn-sm">
+                <i class="bi bi-person-plus me-1"></i>👥 Добавить пользователя
+              </a>
+            {% endif %}
+            <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger btn-sm">
+              <i class="bi bi-box-arrow-right me-1"></i>🚪 Выйти
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Navigation -->
+    <div class="nav-controls">
+      <div class="row align-items-center">
+        <div class="col-md-6">
+          <h5 class="mb-0">
+            <i class="bi bi-gear me-2"></i>⚡ Панель управления
+          </h5>
+        </div>
+        <div class="col-md-6 text-end">
+          <div class="btn-group" role="group">
+            <button class="btn btn-custom btn-sm" data-bs-toggle="modal" data-bs-target="#stateModal">
+              <i class="bi bi-tags me-1"></i>🏷️ Состояния
+            </button>
+            <button class="btn btn-custom btn-sm" data-bs-toggle="modal" data-bs-target="#trainModal">
+              <i class="bi bi-robot me-1"></i>🤖 Обучение
+            </button>
+            <button class="btn btn-outline-custom btn-sm" data-bs-toggle="modal" data-bs-target="#sourceManagementModal">
+              <i class="bi bi-collection-play me-1"></i>📁 Источники
+            </button>
+            <button class="btn btn-outline-custom btn-sm" data-bs-toggle="modal" data-bs-target="#translationsModal">
+              <i class="bi bi-translate me-1"></i>🌐 Переводы
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI Dashboard -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-6 col-lg-3">
+        <div class="kpi-card kpi-gradient-1">
+          <div class="kpi-icon">🐷</div>
+          <div class="kpi-value" id="totalPigs">
+            <div class="loading-spinner"></div>
+          </div>
+          <div class="kpi-label">📊 Общее количество свиней</div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3">
+        <div class="kpi-card kpi-gradient-2">
+          <div class="kpi-icon">⚡</div>
+          <div class="kpi-value" id="activePigs">
+            <div class="loading-spinner"></div>
+          </div>
+          <div class="kpi-label">🎯 Процент активных свиней</div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3">
+        <div class="kpi-card kpi-gradient-3">
+          <div class="kpi-icon">⏱️</div>
+          <div class="kpi-value" id="avgStateTime">
+            <div class="loading-spinner"></div>
+          </div>
+          <div class="kpi-label">⌛ Среднее время в состоянии</div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3">
+        <div class="kpi-card kpi-gradient-4">
+          <div class="kpi-icon">📝</div>
+          <div class="kpi-value" id="totalStates">
+            <div class="loading-spinner"></div>
+          </div>
+          <div class="kpi-label">🗂️ Всего состояний в базе</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Video Source Selection -->
+    <div class="row mb-4">
       <div class="col-12">
         <div class="dashboard-card p-3">
-          <h3>Лог событий</h3>
-          <div class="row g-3 mb-3">
+          <div class="row align-items-center">
+            <div class="col-md-6">
+              <h5 class="mb-0">
+                <i class="bi bi-play-circle me-2"></i>📹 Выбор источника видео
+              </h5>
+            </div>
+            <div class="col-md-6">
+              <form id="videoSourceForm" class="d-flex gap-2">
+                <select name="source" id="source" class="form-select">
+                  <option value="webcam">📷 Веб-камера</option>
+                  <option value="remote_camera">📡 Удаленная камера</option>
+                  {% for source, type in sources %}
+                  <option value="{{ source }}" {% if source == current_source %}selected{% endif %}>
+                    {% if type == 'Видео' %}🎬{% else %}🖼️{% endif %} {{ source }}
+                  </option>
+                  {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-custom">
+                  <i class="bi bi-arrow-repeat me-1"></i>🔄 Сменить
+                </button>
+                <button type="button" class="btn btn-outline-custom" data-bs-toggle="modal" data-bs-target="#remoteCameraModal">
+                  <i class="bi bi-gear me-1"></i>⚙️ Настройки
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alert Area -->
+    <div id="alert-area" class="mb-4"></div>
+
+    <!-- Main Content Grid -->
+    <div class="row g-4">
+      <!-- Video Feed Section -->
+      <div class="col-12 col-lg-6 col-xl-5">
+        <div class="dashboard-card p-3">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">
+              <i class="bi bi-camera-video me-2"></i>📺 Видео поток
+            </h5>
+            <div class="d-flex align-items-center">
+              <div class="status-indicator status-online me-2"></div>
+              <small class="text-muted">🟢 Онлайн</small>
+            </div>
+          </div>
+          <div class="video-container position-relative">
+            <img id="videoFeed" class="img-fluid w-100" src="" alt="Видео поток" style="max-height: 400px; object-fit: contain;">
+            <div id="videoError" class="position-absolute top-50 start-50 translate-middle text-center text-danger d-none">
+              <i class="bi bi-exclamation-triangle fs-1"></i>
+              <p class="mt-2">❌ Ошибка загрузки видеопотока</p>
+            </div>
+            <div id="videoLoading" class="position-absolute top-50 start-50 translate-middle d-none">
+              <div class="loading-spinner"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Analytics Sidebar -->
+      <div class="col-12 col-lg-6 col-xl-7">
+        <div class="dashboard-card p-3">
+          <h5 class="mb-3">
+            <i class="bi bi-graph-up me-2"></i>📊 Аналитика и мониторинг
+          </h5>
+
+          <!-- Pig Selection -->
+          <div class="mb-3">
+            <label for="chartTrackFilter" class="form-label small fw-semibold">
+              <i class="bi bi-filter me-1"></i>🐷 Выберите ID свиньи:
+            </label>
+            <select id="chartTrackFilter" class="form-select form-select-sm"></select>
+          </div>
+
+          <!-- Charts Row -->
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="chart-card">
+                <h6 class="text-center mb-2">📈 Состояния</h6>
+                <div id="stateChart" style="height: 200px;"></div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="chart-card">
+                <h6 class="text-center mb-2">⏰ Длительность</h6>
+                <div id="durationChart" style="height: 200px;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Activity Log -->
+      <div class="col-12">
+        <div class="dashboard-card p-3">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">
+              <i class="bi bi-activity me-2"></i>📋 Журнал активности
+            </h5>
+            <div class="d-flex gap-2">
+              <button id="clearLogBtn" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-trash me-1"></i>🗑️ Очистить
+              </button>
+              <button id="exportLogBtn" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-download me-1"></i>💾 Экспорт
+              </button>
+            </div>
+          </div>
+
+          <!-- Filters -->
+          <div class="row g-2 mb-3">
             <div class="col-md-4">
-              <input type="text" id="filterTime" class="form-control" placeholder="Фильтр по времени (YYYY-MM-DD HH:MM:SS)">
+              <input type="text" id="filterTime" class="form-control form-control-sm"
+                     placeholder="Фильтр по времени (YYYY-MM-DD HH:MM:SS)">
             </div>
             <div class="col-md-4">
-              <input type="text" id="filterTrack" class="form-control" placeholder="Фильтр по ID свиньи">
+              <input type="text" id="filterTrack" class="form-control form-control-sm"
+                     placeholder="Фильтр по ID свиньи">
             </div>
             <div class="col-md-4">
-              <select id="sortTrack" class="form-select">
+              <select id="sortTrack" class="form-select form-select-sm">
                 <option value="">Выберите ID свиньи</option>
               </select>
             </div>
           </div>
-          <table class="table table-striped" id="logTable">
-            <thead>
-              <tr>
-                <th>Время</th>
-                <th>ID свиньи</th>
-                <th>Сообщение</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
+
+          <!-- Log Table -->
+          <div class="table-responsive">
+            <table class="table table-hover" id="logTable">
+              <thead class="table-light">
+                <tr>
+                  <th scope="col" style="width: 180px;">
+                    <i class="bi bi-clock me-1"></i>Время
+                  </th>
+                  <th scope="col" style="width: 100px;">
+                    <i class="bi bi-hash me-1"></i>ID
+                  </th>
+                  <th scope="col">
+                    <i class="bi bi-chat-text me-1"></i>Событие
+                  </th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <!-- Empty State -->
+          <div id="emptyLogState" class="text-center py-4 text-muted d-none">
+            <i class="bi bi-info-circle fs-1"></i>
+            <p class="mt-2">Журнал активности пуст</p>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Модальное окно для управления состояниями -->
+  <!-- Modal: State Management -->
   <div class="modal fade" id="stateModal" tabindex="-1" aria-labelledby="stateModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
       <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="stateModalLabel">Управление состояниями</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title" id="stateModalLabel">
+            <i class="bi bi-tags me-2"></i>Управление состояниями
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body" id="stateModalBody">
-          <button class="btn btn-success mb-3" id="addStateBtn">Добавить состояние</button>
-          <table class="table table-striped" id="stateTable">
-            <thead>
-              <tr>
-                <th>Код</th>
-                <th>Описание</th>
-                <th>Действия</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+              <h6 class="mb-0">Список состояний системы</h6>
+              <small class="text-muted">Управляйте состояниями поведения свиней</small>
+            </div>
+            <button class="btn btn-custom" id="addStateBtn">
+              <i class="bi bi-plus-circle me-1"></i>Добавить состояние
+            </button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-hover" id="stateTable">
+              <thead class="table-light">
+                <tr>
+                  <th scope="col" style="width: 20%;">
+                    <i class="bi bi-hash me-1"></i>Код
+                  </th>
+                  <th scope="col">
+                    <i class="bi bi-card-text me-1"></i>Описание
+                  </th>
+                  <th scope="col" style="width: 200px;">
+                    <i class="bi bi-gear me-1"></i>Действия
+                  </th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <!-- Empty State -->
+          <div id="emptyStatesState" class="text-center py-5 text-muted d-none">
+            <i class="bi bi-tags fs-1"></i>
+            <h6 class="mt-3">Состояния не найдены</h6>
+            <p>Добавьте первое состояние для начала работы</p>
+          </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="bi bi-x me-1"></i>Закрыть
+          </button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Модальное окно для управления датасетом -->
+  <!-- Modal: Dataset Management -->
   <div class="modal fade" id="datasetModal" tabindex="-1" aria-labelledby="datasetModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
       <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="datasetModalLabel">Управление датасетом</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-header bg-success text-white">
+          <h5 class="modal-title" id="datasetModalLabel">
+            <i class="bi bi-folder me-2"></i>Управление датасетом
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <form id="uploadVideoForm" enctype="multipart/form-data">
-            <div class="mb-3">
-              <label for="videoFile" class="form-label">Загрузить файл (MP4, JPG, PNG, BMP):</label>
-              <input type="file" class="form-control" id="videoFile" name="video" accept=".mp4,.jpg,.jpeg,.png,.bmp">
+          <!-- Upload Section -->
+          <div class="card mb-4">
+            <div class="card-header">
+              <h6 class="mb-0">
+                <i class="bi bi-upload me-2"></i>Загрузка файлов
+              </h6>
             </div>
-            <button type="submit" class="btn btn-primary">Загрузить</button>
-            <div class="progress mt-2" id="uploadProgress" style="display: none;">
-              <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+            <div class="card-body">
+              <form id="uploadVideoForm" enctype="multipart/form-data">
+                <div class="row align-items-end">
+                  <div class="col-md-8">
+                    <label for="videoFile" class="form-label fw-semibold">
+                      Выберите файл для загрузки
+                    </label>
+                    <input type="file" class="form-control" id="videoFile" name="video"
+                           accept=".mp4,.jpg,.jpeg,.png,.bmp" multiple>
+                    <div class="form-text">
+                      Поддерживаемые форматы: MP4, JPG, JPEG, PNG, BMP
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <button type="submit" class="btn btn-custom w-100">
+                      <i class="bi bi-cloud-upload me-1"></i>Загрузить
+                    </button>
+                  </div>
+                </div>
+                <div class="progress mt-3" id="uploadProgress" style="display: none;">
+                  <div class="progress-bar" role="progressbar" style="width: 0%;"
+                       aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                    Загрузка...
+                  </div>
+                </div>
+              </form>
             </div>
-          </form>
-          <table class="table table-striped mt-3" id="videoTable">
-            <thead>
-              <tr>
-                <th>Имя файла</th>
-                <th>Тип</th>
-                <th>Действия</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-          <nav aria-label="Пагинация файлов">
-            <div class="pagination-container">
-              <ul class="pagination justify-content-center" id="pagination"></ul>
+          </div>
+
+          <!-- Files List -->
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h6 class="mb-0">
+                <i class="bi bi-files me-2"></i>Файлы датасета
+              </h6>
+              <small class="text-muted" id="fileCount">0 файлов</small>
             </div>
-          </nav>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-hover" id="videoTable">
+                  <thead class="table-light">
+                    <tr>
+                      <th scope="col" style="width: 50px;">
+                        <i class="bi bi-file-earmark me-1"></i>
+                      </th>
+                      <th scope="col">Имя файла</th>
+                      <th scope="col" style="width: 100px;">Тип</th>
+                      <th scope="col" style="width: 150px;">Действия</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+
+              <!-- Pagination -->
+              <nav aria-label="Пагинация файлов" class="mt-3">
+                <div class="pagination-container">
+                  <ul class="pagination justify-content-center" id="pagination"></ul>
+                </div>
+              </nav>
+
+              <!-- Empty State -->
+              <div id="emptyDatasetState" class="text-center py-5 text-muted d-none">
+                <i class="bi bi-folder-x fs-1"></i>
+                <h6 class="mt-3">Файлы не найдены</h6>
+                <p>Загрузите файлы для создания датасета</p>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" id="backToStateModal">Назад</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="bi bi-x me-1"></i>Закрыть
+          </button>
         </div>
       </div>
     </div>
@@ -319,20 +489,340 @@
     </div>
   </div>
 
-  <!-- Модальное окно для обучения -->
+  <!-- Modal: Model Training -->
   <div class="modal fade" id="trainModal" tabindex="-1" aria-labelledby="trainModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
       <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="trainModalLabel">Обучение модели</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-header bg-info text-white">
+          <h5 class="modal-title" id="trainModalLabel">
+            <i class="bi bi-robot me-2"></i>Обучение модели
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <div id="trainingLog" class="border p-3"></div>
+          <!-- Training Info -->
+          <div class="alert alert-info mb-4">
+            <h6 class="alert-heading">
+              <i class="bi bi-info-circle me-2"></i>Информация об обучении
+            </h6>
+            <p class="mb-0">
+              Процесс обучения может занять продолжительное время в зависимости от объема датасета.
+              Не закрывайте это окно во время обучения.
+            </p>
+          </div>
+
+          <!-- Training Controls -->
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+              <h6 class="mb-0">Лог обучения модели</h6>
+              <small class="text-muted">Отслеживайте прогресс обучения в реальном времени</small>
+            </div>
+            <div class="d-flex gap-2">
+              <button id="clearTrainingLogBtn" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-trash me-1"></i>Очистить лог
+              </button>
+              <button id="downloadTrainingLogBtn" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-download me-1"></i>Скачать лог
+              </button>
+            </div>
+          </div>
+
+          <!-- Training Log -->
+          <div id="trainingLog" class="bg-dark text-light p-3 rounded"
+               style="height: 400px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.9rem;">
+            <div class="text-muted">
+              <i class="bi bi-terminal me-1"></i>
+              Ожидание начала обучения...
+            </div>
+          </div>
+
+          <!-- Training Progress -->
+          <div id="trainingProgress" class="mt-3 d-none">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <small class="fw-semibold">Прогресс обучения</small>
+              <small id="progressText">0%</small>
+            </div>
+            <div class="progress">
+              <div class="progress-bar progress-bar-striped progress-bar-animated"
+                   role="progressbar" style="width: 0%" id="progressBar"></div>
+            </div>
+          </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-primary" id="startTrainingBtn">Начать обучение</button>
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+          <button type="button" class="btn btn-custom" id="startTrainingBtn">
+            <i class="bi bi-play-circle me-1"></i>Начать обучение
+          </button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="bi bi-x me-1"></i>Закрыть
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Remote Camera Settings -->
+  <div class="modal fade" id="remoteCameraModal" tabindex="-1" aria-labelledby="remoteCameraModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header bg-info text-white">
+          <h5 class="modal-title" id="remoteCameraModalLabel">
+            <i class="bi bi-router me-2"></i>📡 Настройки удаленной камеры
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="remoteCameraForm">
+            <div class="alert alert-info">
+              <h6 class="alert-heading">
+                <i class="bi bi-info-circle me-2"></i>ℹ️ Информация
+              </h6>
+              <p class="mb-0">
+                Настройте подключение к удаленной IP-камере или RTSP потоку для мониторинга свиней.
+              </p>
+            </div>
+
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label for="cameraType" class="form-label fw-semibold">
+                  <i class="bi bi-camera me-1"></i>🎥 Тип камеры
+                </label>
+                <select class="form-select" id="cameraType">
+                  <option value="ip">📹 IP-камера (HTTP)</option>
+                  <option value="rtsp">📡 RTSP поток</option>
+                  <option value="rtmp">🔴 RTMP поток</option>
+                  <option value="usb">🔌 USB камера</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label for="cameraResolution" class="form-label fw-semibold">
+                  <i class="bi bi-aspect-ratio me-1"></i>📐 Разрешение
+                </label>
+                <select class="form-select" id="cameraResolution">
+                  <option value="640x480">640x480 (VGA)</option>
+                  <option value="1280x720" selected>1280x720 (HD)</option>
+                  <option value="1920x1080">1920x1080 (Full HD)</option>
+                  <option value="auto">🔄 Автоматически</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="cameraUrl" class="form-label fw-semibold">
+                <i class="bi bi-link me-1"></i>🔗 URL адрес потока
+              </label>
+              <input type="url" class="form-control" id="cameraUrl" 
+                     placeholder="rtsp://192.168.1.100:554/stream или http://192.168.1.100/mjpg/video.mjpg">
+              <div class="form-text">
+                Примеры: rtsp://user:pass@192.168.1.100:554/stream, http://192.168.1.100/mjpg/video.mjpg
+              </div>
+            </div>
+
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label for="cameraUsername" class="form-label fw-semibold">
+                  <i class="bi bi-person me-1"></i>👤 Имя пользователя
+                </label>
+                <input type="text" class="form-control" id="cameraUsername" placeholder="admin">
+              </div>
+              <div class="col-md-6">
+                <label for="cameraPassword" class="form-label fw-semibold">
+                  <i class="bi bi-key me-1"></i>🔑 Пароль
+                </label>
+                <input type="password" class="form-control" id="cameraPassword" placeholder="••••••••">
+              </div>
+            </div>
+
+            <div class="row g-3 mt-2">
+              <div class="col-md-6">
+                <label for="cameraFps" class="form-label fw-semibold">
+                  <i class="bi bi-speedometer me-1"></i>⚡ FPS (кадров в секунду)
+                </label>
+                <select class="form-select" id="cameraFps">
+                  <option value="10">10 FPS</option>
+                  <option value="15">15 FPS</option>
+                  <option value="25" selected>25 FPS</option>
+                  <option value="30">30 FPS</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label for="cameraTimeout" class="form-label fw-semibold">
+                  <i class="bi bi-clock me-1"></i>⏱️ Таймаут (сек)
+                </label>
+                <input type="number" class="form-control" id="cameraTimeout" value="30" min="5" max="120">
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+            <i class="bi bi-x me-1"></i>❌ Отмена
+          </button>
+          <button type="button" class="btn btn-outline-primary" id="testCameraBtn">
+            <i class="bi bi-play-circle me-1"></i>🧪 Тест подключения
+          </button>
+          <button type="button" class="btn btn-custom" id="saveCameraBtn">
+            <i class="bi bi-check-lg me-1"></i>✅ Сохранить
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Translations Management -->
+  <div class="modal fade" id="translationsModal" tabindex="-1" aria-labelledby="translationsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header bg-info text-white">
+          <h5 class="modal-title" id="translationsModalLabel">
+            <i class="bi bi-translate me-2"></i>🌐 Управление переводами
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-info">
+            <h6 class="alert-heading">
+              <i class="bi bi-info-circle me-2"></i>ℹ️ Информация
+            </h6>
+            <p class="mb-0">
+              Здесь вы можете редактировать переводы состояний на разные языки. 
+              Переводы сохраняются в базе данных и применяются сразу.
+            </p>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-hover" id="translationsTable">
+              <thead class="table-light">
+                <tr>
+                  <th scope="col" style="width: 25%;">
+                    <i class="bi bi-tag me-1"></i>Состояние
+                  </th>
+                  <th scope="col" style="width: 35%;">
+                    <i class="bi bi-flag me-1"></i>🇷🇺 Русский
+                  </th>
+                  <th scope="col" style="width: 35%;">
+                    <i class="bi bi-flag me-1"></i>🇺🇸 English
+                  </th>
+                  <th scope="col" style="width: 5%;">
+                    <i class="bi bi-gear me-1"></i>
+                  </th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <div id="emptyTranslationsState" class="text-center py-5 text-muted d-none">
+            <i class="bi bi-translate fs-1"></i>
+            <h6 class="mt-3">🌐 Переводы не найдены</h6>
+            <p>Загрузите переводы или добавьте новые состояния</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+            <i class="bi bi-x me-1"></i>❌ Закрыть
+          </button>
+          <button type="button" class="btn btn-outline-primary" id="refreshTranslationsBtn">
+            <i class="bi bi-arrow-clockwise me-1"></i>🔄 Обновить
+          </button>
+          <button type="button" class="btn btn-custom" id="saveAllTranslationsBtn">
+            <i class="bi bi-check-lg me-1"></i>💾 Сохранить все
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Source Management -->
+  <div class="modal fade" id="sourceManagementModal" tabindex="-1" aria-labelledby="sourceManagementModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content">
+        <div class="modal-header bg-success text-white">
+          <h5 class="modal-title" id="sourceManagementModalLabel">
+            <i class="bi bi-collection-play me-2"></i>📁 Управление источниками
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <!-- Upload Section -->
+          <div class="card mb-4">
+            <div class="card-header">
+              <h6 class="mb-0">
+                <i class="bi bi-cloud-upload me-2"></i>☁️ Загрузка медиафайлов
+              </h6>
+            </div>
+            <div class="card-body">
+              <form id="sourceUploadForm" enctype="multipart/form-data">
+                <div class="row align-items-end">
+                  <div class="col-md-8">
+                    <label for="sourceFiles" class="form-label fw-semibold">
+                      📎 Выберите файлы для загрузки
+                    </label>
+                    <input type="file" class="form-control" id="sourceFiles" name="files"
+                           accept=".mp4,.avi,.mov,.mkv,.jpg,.jpeg,.png,.bmp,.gif" multiple>
+                    <div class="form-text">
+                      Поддерживаемые форматы: MP4, AVI, MOV, MKV, JPG, JPEG, PNG, BMP, GIF
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <button type="submit" class="btn btn-custom w-100">
+                      <i class="bi bi-upload me-1"></i>📤 Загрузить
+                    </button>
+                  </div>
+                </div>
+                <div class="progress mt-3" id="sourceUploadProgress" style="display: none;">
+                  <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                       role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                    Загрузка...
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- Files List -->
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h6 class="mb-0">
+                <i class="bi bi-files me-2"></i>📋 Список источников
+              </h6>
+              <div class="d-flex gap-2">
+                <small class="text-muted" id="sourceFileCount">0 файлов</small>
+                <button id="refreshSourcesBtn" class="btn btn-outline-primary btn-sm">
+                  <i class="bi bi-arrow-clockwise me-1"></i>🔄 Обновить
+                </button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-hover" id="sourceTable">
+                  <thead class="table-light">
+                    <tr>
+                      <th scope="col" style="width: 60px;">
+                        <i class="bi bi-file-earmark me-1"></i>📄
+                      </th>
+                      <th scope="col">Имя файла</th>
+                      <th scope="col" style="width: 100px;">Тип</th>
+                      <th scope="col" style="width: 120px;">Размер</th>
+                      <th scope="col" style="width: 160px;">Действия</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+
+              <!-- Empty State -->
+              <div id="emptySourcesState" class="text-center py-5 text-muted d-none">
+                <i class="bi bi-folder-x fs-1"></i>
+                <h6 class="mt-3">📂 Источники не найдены</h6>
+                <p>Загрузите медиафайлы для создания источников</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="bi bi-x me-1"></i>❌ Закрыть
+          </button>
         </div>
       </div>
     </div>

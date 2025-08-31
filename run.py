@@ -9,8 +9,8 @@ from app.config import logger, check_hardware, create_video_processor, VIDEO_PAT
 def parse_args():
     parser = argparse.ArgumentParser(description="Система мониторинга поведения свиней")
     parser.add_argument("--device", type=str, default="cuda", choices=["cuda", "cpu"], help="Устройство для работы модели (cuda или cpu)")
-    parser.add_argument("--model", type=str, default=os.getenv('MODEL_PATH', "models/yolo11m-seg-mod.pt"), help="Путь к модели YOLO")
-    parser.add_argument("--video", type=str, default=VIDEO_PATH, help="Путь к видеофайлу")
+    parser.add_argument("--model", type=str, default=os.getenv('MODEL_PATH', "models/yolo11n-mod.pt"), help="Путь к модели YOLO")
+    parser.add_argument("--video", type=str, default="webcam", help="Путь к видеофайлу или 'webcam' для веб-камеры")
     parser.add_argument("--pt-model", type=str, default=os.getenv('PT_MODEL_PATH', "models/pig_model.pth"), help="Путь к модели PyTorch")
     parser.add_argument("--tracker-config", type=str, default=os.getenv('TRACKER_CONFIG', "models/bytetrack.yaml"), help="Путь к конфигурации трекера")
     return parser.parse_args()

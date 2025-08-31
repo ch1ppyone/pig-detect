@@ -1,5 +1,8 @@
 flask
 flask-socketio
+flask-login
+flask-session
+werkzeug
 ultralytics
 torch
 torchvision
@@ -8,3 +11,12 @@ numpy
 python-dotenv
 tqdm
 pyyaml
+Pillow
+# Валидация
+pydantic>=2.0.0
+pydantic[email]
+# Дополнительные утилиты
+python-multipart
+email-validator
+# Аугментация данных
+albumentations

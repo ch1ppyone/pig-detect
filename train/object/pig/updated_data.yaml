@@ -1,9 +1,0 @@
-names:
-- pig
-nc: 1
-test: "C:\\Users\\\u041C\u0430\u043A\u0441\u0438\u043C\\Desktop\\pj\\pig-detect\\\
-  train\\object\\pig\\test\\images"
-train: "C:\\Users\\\u041C\u0430\u043A\u0441\u0438\u043C\\Desktop\\pj\\pig-detect\\\
-  train\\object\\pig\\train\\images"
-val: "C:\\Users\\\u041C\u0430\u043A\u0441\u0438\u043C\\Desktop\\pj\\pig-detect\\train\\\
-  object\\pig\\val\\images"

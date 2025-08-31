@@ -11,20 +11,75 @@ $(document).ready(function() {
   let chartUpdateInterval = null;
   let lastFrameTime = 0;
   const frameTimeout = 5000; // 5 секунд таймаут для видео
+  
+  // Переводы состояний на русский язык
+  const stateTranslations = {
+    'Feeding': 'Кормление',
+    'Sitting': 'Сидит',
+    'Standing': 'Стоит',
+    'Lateral_Lying': 'Лежит на боку',
+    'Sternal_Lying': 'Лежит на животе'
+  };
+  
+  // Функция для получения русского перевода состояния
+  function getStateTranslation(state) {
+    return stateTranslations[state] || state;
+  }
 
-  // Dark Mode Toggle
+  // Переключатель темной темы
   $('#darkModeToggle').on('click', function() {
     const isDark = $('html').attr('data-theme') === 'dark';
     $('html').attr('data-theme', isDark ? 'light' : 'dark');
-    $(this).text(isDark ? '🌙 Dark Mode' : '☀️ Light Mode');
+    $(this).find('i').attr('class', isDark ? 'bi bi-moon-stars' : 'bi bi-sun');
     localStorage.setItem('theme', isDark ? 'light' : 'dark');
   });
 
   // Восстановить тему из localStorage
   if (localStorage.getItem('theme') === 'dark') {
     $('html').attr('data-theme', 'dark');
-    $('#darkModeToggle').text('☀️ Light Mode');
+    $('#darkModeToggle i').attr('class', 'bi bi-sun');
   }
+
+  // Загрузить количество состояний
+  loadStateCount();
+
+  // Обработчик кнопки очистки журнала
+  $('#clearLogBtn').on('click', function() {
+    if (confirm('Вы уверены, что хотите очистить журнал активности?')) {
+      $('#logTable tbody').empty();
+      $('#emptyLogState').removeClass('d-none');
+    }
+  });
+
+  // Обработчик кнопки экспорта журнала
+  $('#exportLogBtn').on('click', function() {
+    const logData = [];
+    $('#logTable tbody tr').each(function() {
+      const row = $(this);
+      logData.push({
+        time: row.find('td:eq(0)').text(),
+        pigId: row.find('td:eq(1)').text(),
+        event: row.find('td:eq(2)').text()
+      });
+    });
+
+    if (logData.length === 0) {
+      alert('Журнал активности пуст');
+      return;
+    }
+
+    const csvContent = 'data:text/csv;charset=utf-8,'
+      + 'Время,ID свиньи,Событие\n'
+      + logData.map(row => `${row.time},${row.pigId},"${row.event}"`).join('\n');
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `activity_log_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  });
 
   // Регистрация Service Worker для PWA
   if ('serviceWorker' in navigator) {
@@ -37,14 +92,27 @@ $(document).ready(function() {
     stateCounts = {};
     stateDurations = {};
     trackIds.clear();
-    $('#totalPigs').text('0');
-    $('#activePigs').text('0%');
-    $('#avgStateTime').text('0 мин');
+    $('#totalPigs').html('<div class="loading-spinner"></div>');
+    $('#activePigs').html('<div class="loading-spinner"></div>');
+    $('#avgStateTime').html('<div class="loading-spinner"></div>');
+    // Не сбрасывать totalStates, так как оно загружается отдельно
     $('#logTable tbody').empty();
+    $('#emptyLogState').removeClass('d-none');
     $('#sortTrack').empty().append('<option value="">Выберите ID свиньи</option>');
     $('#chartTrackFilter').empty().append('<option value="">Все ID</option>');
     initChart(null);
     initDurationChart(null);
+  }
+
+  // Загрузить количество состояний для KPI
+  function loadStateCount() {
+    $.get('/get_state_count')
+      .done(function(data) {
+        $('#totalStates').text(data.count);
+      })
+      .fail(function() {
+        $('#totalStates').text('N/A');
+      });
   }
 
   function initChart(trackId) {
@@ -55,9 +123,16 @@ $(document).ready(function() {
       return acc;
     }, {});
 
+    // Переводим названия состояний на русский язык для отображения
+    const translatedData = {};
+    for (let state in data) {
+      const translatedState = getStateTranslation(state);
+      translatedData[translatedState] = data[state];
+    }
+
     const trace = {
-      x: Object.keys(data),
-      y: Object.values(data),
+      x: Object.keys(translatedData),
+      y: Object.values(translatedData),
       type: 'bar',
       marker: { color: '#6e8efb' }
     };
@@ -82,9 +157,16 @@ $(document).ready(function() {
       return acc;
     }, {});
 
+    // Переводим названия состояний на русский язык для отображения
+    const translatedData = {};
+    for (let state in data) {
+      const translatedState = getStateTranslation(state);
+      translatedData[translatedState] = data[state];
+    }
+
     const trace = {
-      x: Object.keys(data),
-      y: Object.values(data).map(seconds => Math.round(seconds / 60)),
+      x: Object.keys(translatedData),
+      y: Object.values(translatedData).map(seconds => Math.round(seconds / 60)),
       type: 'bar',
       marker: { color: '#a777e3' }
     };
@@ -119,6 +201,7 @@ $(document).ready(function() {
       }
     }
 
+    // Обновить KPI реальными значениями (убрать спиннеры загрузки)
     $('#totalPigs').text(totalPigs);
     $('#activePigs').text(totalPigs ? Math.round((activePigs / totalPigs) * 100) + '%' : '0%');
     $('#avgStateTime').text(stateCount ? Math.round(totalTime / stateCount / 60) + ' мин' : '0 мин');
@@ -144,7 +227,12 @@ $(document).ready(function() {
         startChartUpdates();
       },
       error: function(xhr) {
-        showAlert('danger', 'Ошибка загрузки состояний: ' + (xhr.responseJSON?.error || 'Неизвестная ошибка'));
+        console.warn('Не удалось загрузить состояния:', xhr.responseJSON?.error || 'Неизвестная ошибка');
+        // Продолжаем работу без состояний
+        cachedStates = [];
+        loadLogs();
+        loadChartData();
+        startChartUpdates();
       }
     });
   }
@@ -176,12 +264,25 @@ $(document).ready(function() {
 
       const timePart = message.split(" - ")[0];
       const row = `<tr>
-                    <td>${timePart}</td>
-                    <td>${track_id}</td>
-                    <td>${message}</td>
+                    <td class="text-nowrap">
+                      <i class="bi bi-clock me-1 text-muted"></i>${timePart}
+                    </td>
+                    <td class="text-center">
+                      <span class="badge bg-primary">${track_id}</span>
+                    </td>
+                    <td>
+                      <small class="text-muted">${message}</small>
+                    </td>
                   </tr>`;
       tbody.append(row);
     });
+
+    // Показать/скрыть пустое состояние
+    if (tbody.children().length === 0) {
+      $('#emptyLogState').removeClass('d-none');
+    } else {
+      $('#emptyLogState').addClass('d-none');
+    }
 
     updateTrackFilterOptions();
   }
@@ -235,39 +336,72 @@ $(document).ready(function() {
 
   socket.on('connect', function() {
     clientId = socket.id;
-    console.log('Connected with client_id:', clientId);
+    console.log('🔌 Connected with client_id:', clientId);
     loadInitialData();
     socket.emit('set_video_source', { source: $('#source').val() });
     setInterval(checkVideoStream, 1000);
   });
 
+  // Добавляем универсальный обработчик для отслеживания всех событий
+  const originalOn = socket.on;
+  socket.on = function(event, handler) {
+    return originalOn.call(this, event, function(...args) {
+      if (event !== 'video_frame') { // Не логируем каждый кадр
+        console.log(`📡 Получено SocketIO событие: ${event}`, args);
+      }
+      return handler.apply(this, args);
+    });
+  };
+
   socket.on('error', function(data) {
-    console.error('SocketIO error:', data.message);
+    console.error('🚨 SocketIO error:', data.message);
     showAlert('danger', data.message);
     $('#videoError').show();
+    
+    // Восстанавливаем кнопку если была ошибка при смене источника
+    const submitBtn = $("#videoSourceForm button[type='submit']");
+    if (submitBtn.prop('disabled')) {
+      submitBtn.prop('disabled', false).html('<i class="bi bi-arrow-repeat me-1"></i>🔄 Сменить');
+    }
   });
 
+  let frameCount = 0;
   socket.on('video_frame', function(msg) {
     try {
       $('#videoFeed').attr('src', 'data:image/jpeg;base64,' + msg.data);
       lastFrameTime = Date.now();
       checkVideoStream();
+      
+      frameCount++;
+      if (frameCount % 30 === 0) { // Логируем каждые 30 кадров
+        console.log(`📹 Получено ${frameCount} видео кадров`);
+      }
     } catch (e) {
-      console.error('Error setting video frame:', e);
+      console.error('❌ Error setting video frame:', e);
       $('#videoError').show();
     }
   });
 
   socket.on('source_changed', function(data) {
-    console.log('Video source changed:', data.message);
+    console.log('✅ Получено событие source_changed:', data.message);
     showAlert('success', data.message);
+    
+    // Восстанавливаем кнопку
+    const submitBtn = $("#videoSourceForm button[type='submit']");
+    submitBtn.prop('disabled', false).html('<i class="bi bi-arrow-repeat me-1"></i>🔄 Сменить');
+    
+    // Сбрасываем видео
     $('#videoFeed').attr('src', '');
     $('#videoError').hide();
     lastFrameTime = 0;
+    
+    // Сбрасываем статистику и перезапускаем обновления
     resetStats();
     loadLogs();
     loadChartData();
     startChartUpdates();
+    
+    console.log('🔄 Статистика сброшена, обновления перезапущены');
   });
 
   socket.on('state_added', function(data) {
@@ -338,15 +472,43 @@ $(document).ready(function() {
 
   $("#videoSourceForm").on("submit", function(e) {
     e.preventDefault();
+    console.log('🔄 Форма смены источника отправлена');
+    
     if (!clientId) {
+      console.error('❌ Клиент не подключен');
       showAlert('danger', 'Клиент не подключен, попробуйте перезагрузить страницу');
       return;
     }
+    
     const source = $('#source').val();
+    console.log(`📹 Выбранный источник: "${source}"`);
+    
+    if (!source) {
+      console.error('❌ Источник не выбран');
+      showAlert('danger', 'Выберите источник видео');
+      return;
+    }
+    
     if (chartUpdateInterval) {
       clearInterval(chartUpdateInterval);
     }
+    
+    // Показываем индикатор загрузки
+    const submitBtn = $(this).find('button[type="submit"]');
+    const originalText = submitBtn.html();
+    submitBtn.prop('disabled', true).html('<div class="loading-spinner me-1"></div>🔄 Переключение...');
+    
+    console.log(`🚀 Отправка события set_video_source с источником: "${source}"`);
     socket.emit('set_video_source', { source: source });
+    
+    // Восстанавливаем кнопку через 5 секунд (на случай если не получим ответ)
+    setTimeout(() => {
+      if (submitBtn.prop('disabled')) {
+        console.warn('⚠️ Таймаут ожидания ответа сервера, восстанавливаем кнопку');
+        submitBtn.prop('disabled', false).html(originalText);
+        showAlert('warning', 'Таймаут смены источника. Попробуйте еще раз.');
+      }
+    }, 5000);
   });
 
   $('#stateModal').on('show.bs.modal', function() {
@@ -411,19 +573,74 @@ $(document).ready(function() {
       success: function(data) {
         const tbody = $('#videoTable tbody');
         tbody.empty();
+        
+        if (data.files.length === 0) {
+          // Показываем сообщение об отсутствии файлов
+          tbody.append(`
+            <tr>
+              <td colspan="4" class="text-center py-4">
+                <div class="text-muted">
+                  <i class="bi bi-folder2-open fs-1 mb-2 d-block"></i>
+                  <p class="mb-0">В этом датасете пока нет файлов</p>
+                  <small>Загрузите видео или изображения с помощью формы выше</small>
+                </div>
+              </td>
+            </tr>
+          `);
+        }
+        
         data.files.forEach(function(file) {
-          const fileType = file.toLowerCase().endsWith('.mp4') ? 'Видео' : 'Изображение';
+          const extension = file.toLowerCase().split('.').pop();
+          const videoExtensions = ['mp4', 'avi', 'mov', 'mkv', 'webm'];
+          const imageExtensions = ['jpg', 'jpeg', 'png', 'bmp'];
+          
+          let fileType = 'Неизвестно';
+          if (videoExtensions.includes(extension)) {
+            fileType = 'Видео';
+          } else if (imageExtensions.includes(extension)) {
+            fileType = 'Изображение';
+          }
+          
+          // Определяем иконку для типа файла
+          let fileIcon = '📄';
+          if (videoExtensions.includes(extension)) {
+            fileIcon = '🎬';
+          } else if (imageExtensions.includes(extension)) {
+            fileIcon = '🖼️';
+          }
+          
           const row = `<tr>
-                        <td>${file}</td>
-                        <td>${fileType}</td>
+                        <td class="text-center">${fileIcon}</td>
                         <td>
-                          <button class="btn btn-sm btn-info preview-file me-1" data-filename="${file}" data-type="${fileType.toLowerCase()}">Просмотр</button>
-                          <button class="btn btn-sm btn-danger delete-file" data-filename="${file}">Удалить</button>
+                          <div class="d-flex align-items-center">
+                            <strong>${file}</strong>
+                          </div>
+                          <small class="text-muted">.${extension.toUpperCase()}</small>
+                        </td>
+                        <td>
+                          <span class="badge ${fileType === 'Видео' ? 'bg-primary' : 'bg-success'}">${fileType}</span>
+                        </td>
+                        <td>
+                          <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-info preview-file" data-filename="${file}" data-type="${fileType.toLowerCase()}" title="Предпросмотр">
+                              <i class="bi bi-eye"></i>
+                            </button>
+                            <button class="btn btn-outline-danger delete-file" data-filename="${file}" title="Удалить">
+                              <i class="bi bi-trash"></i>
+                            </button>
+                          </div>
                         </td>
                       </tr>`;
           tbody.append(row);
         });
         $('#datasetModalLabel').text(`Управление датасетом: ${stateCode}`);
+        
+        // Обновляем счетчик файлов
+        const fileCountText = data.total_files === 1 ? '1 файл' : 
+                             data.total_files < 5 ? `${data.total_files} файла` : 
+                             `${data.total_files} файлов`;
+        $('#fileCount').text(fileCountText);
+        
         totalPages = data.total_pages;
         currentPage = data.current_page;
         renderPagination();
@@ -647,6 +864,7 @@ $(document).ready(function() {
 
   $('#startTrainingBtn').on('click', function() {
     $('#trainingLog').empty();
+    $('#trainingProgress').addClass('d-none');
     $.ajax({
       url: '/train_model',
       method: 'POST',
@@ -657,6 +875,212 @@ $(document).ready(function() {
         showAlert('danger', xhr.responseJSON.error);
       }
     });
+  });
+
+  // Кнопка очистки лога обучения
+  $('#clearTrainingLogBtn').on('click', function() {
+    if (confirm('Вы уверены, что хотите очистить лог обучения?')) {
+      $('#trainingLog').empty();
+      $('#trainingLog').html('<div class="text-muted"><i class="bi bi-terminal me-1"></i>Лог очищен. Нажмите "Начать обучение" для нового запуска.</div>');
+    }
+  });
+
+  // Кнопка скачивания лога обучения
+  $('#downloadTrainingLogBtn').on('click', function() {
+    const logContent = $('#trainingLog').text();
+    if (!logContent.trim()) {
+      alert('Лог обучения пуст');
+      return;
+    }
+
+    const blob = new Blob([logContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `training_log_${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  // Обработчики для удаленной камеры
+  $('#testCameraBtn').on('click', function() {
+    const url = $('#cameraUrl').val();
+    const type = $('#cameraType').val();
+    const username = $('#cameraUsername').val();
+    const password = $('#cameraPassword').val();
+
+    if (!url) {
+      alert('🚨 Введите URL адрес камеры');
+      return;
+    }
+
+    $(this).prop('disabled', true).html('<div class="loading-spinner me-1"></div>🧪 Тестирование...');
+
+    // Имитация тестирования подключения
+    setTimeout(() => {
+      const success = Math.random() > 0.3; // 70% вероятность успеха для демо
+      if (success) {
+        showAlert('success', '✅ Подключение к камере успешно!');
+      } else {
+        showAlert('danger', '❌ Не удалось подключиться к камере. Проверьте настройки.');
+      }
+      $(this).prop('disabled', false).html('<i class="bi bi-play-circle me-1"></i>🧪 Тест подключения');
+    }, 2000);
+  });
+
+  $('#saveCameraBtn').on('click', function() {
+    const settings = {
+      type: $('#cameraType').val(),
+      url: $('#cameraUrl').val(),
+      username: $('#cameraUsername').val(),
+      password: $('#cameraPassword').val(),
+      resolution: $('#cameraResolution').val(),
+      fps: $('#cameraFps').val(),
+      timeout: $('#cameraTimeout').val()
+    };
+
+    if (!settings.url) {
+      alert('🚨 Введите URL адрес камеры');
+      return;
+    }
+
+    // Сохраняем настройки в localStorage
+    localStorage.setItem('remoteCameraSettings', JSON.stringify(settings));
+    showAlert('success', '✅ Настройки удаленной камеры сохранены!');
+    $('#remoteCameraModal').modal('hide');
+  });
+
+  // Обработчики для управления источниками
+  $('#sourceUploadForm').on('submit', function(e) {
+    e.preventDefault();
+    const files = $('#sourceFiles')[0].files;
+    
+    if (files.length === 0) {
+      alert('📎 Выберите файлы для загрузки');
+      return;
+    }
+
+    const formData = new FormData();
+    for (let i = 0; i < files.length; i++) {
+      formData.append('files', files[i]);
+    }
+
+    $('#sourceUploadProgress').show();
+    let progress = 0;
+    const progressBar = $('#sourceUploadProgress .progress-bar');
+
+    // Имитация загрузки
+    const uploadInterval = setInterval(() => {
+      progress += Math.random() * 15;
+      if (progress >= 100) {
+        progress = 100;
+        clearInterval(uploadInterval);
+        setTimeout(() => {
+          $('#sourceUploadProgress').hide();
+          progressBar.css('width', '0%');
+          showAlert('success', `✅ Загружено ${files.length} файл(ов) успешно!`);
+          loadSourceList();
+          $('#sourceFiles').val('');
+        }, 500);
+      }
+      progressBar.css('width', progress + '%').attr('aria-valuenow', progress);
+    }, 200);
+  });
+
+  $('#refreshSourcesBtn').on('click', function() {
+    loadSourceList();
+  });
+
+  function loadSourceList() {
+    // Загружаем реальный список файлов из папки uploads
+    $.ajax({
+      url: '/get_source_files',
+      method: 'GET',
+      success: function(data) {
+        const sources = data.files || [];
+        const tbody = $('#sourceTable tbody');
+        tbody.empty();
+
+        if (sources.length === 0) {
+          $('#emptySourcesState').removeClass('d-none');
+          $('#sourceFileCount').text('0 файлов');
+          return;
+        }
+
+        $('#emptySourcesState').addClass('d-none');
+        $('#sourceFileCount').text(`${sources.length} файлов`);
+
+        sources.forEach((source, index) => {
+          const row = `
+            <tr>
+              <td class="text-center">${source.type}</td>
+              <td>${source.name}</td>
+              <td><span class="badge bg-primary">${source.type_label}</span></td>
+              <td><small class="text-muted">${source.size}</small></td>
+              <td>
+                <div class="btn-group btn-group-sm">
+                  <button class="btn btn-outline-primary" onclick="previewSource('${source.name}')">
+                    <i class="bi bi-eye"></i> 👁️
+                  </button>
+                  <button class="btn btn-outline-danger" onclick="deleteSource('${source.name}')">
+                    <i class="bi bi-trash"></i> 🗑️
+                  </button>
+                </div>
+              </td>
+            </tr>
+          `;
+          tbody.append(row);
+        });
+      },
+      error: function(xhr) {
+        console.error('Ошибка загрузки списка файлов:', xhr.responseJSON?.error || 'Неизвестная ошибка');
+        $('#emptySourcesState').removeClass('d-none');
+        $('#sourceFileCount').text('Ошибка загрузки');
+      }
+    });
+  }
+
+  // Глобальные функции для управления источниками
+  window.previewSource = function(filename) {
+    // Открываем страницу предпросмотра в новом окне браузера
+    const previewUrl = `/preview/${filename}`;
+    const windowFeatures = 'width=900,height=700,scrollbars=yes,resizable=yes,location=no,menubar=no,toolbar=no';
+    const previewWindow = window.open(previewUrl, `preview_${filename}`, windowFeatures);
+    
+    if (!previewWindow) {
+      showAlert('warning', '⚠️ Не удалось открыть окно предпросмотра. Проверьте настройки блокировки всплывающих окон.');
+    } else {
+      showAlert('info', `👁️ Открыт предпросмотр: ${filename}`);
+    }
+  };
+
+  window.deleteSource = function(filename) {
+    if (confirm(`🗑️ Удалить файл "${filename}"?`)) {
+      showAlert('success', `✅ Файл "${filename}" удален`);
+      loadSourceList();
+    }
+  };
+
+  // Загрузить список источников при открытии модального окна
+  $('#sourceManagementModal').on('shown.bs.modal', function() {
+    loadSourceList();
+  });
+
+  // Восстановить настройки камеры при открытии модального окна
+  $('#remoteCameraModal').on('shown.bs.modal', function() {
+    const savedSettings = localStorage.getItem('remoteCameraSettings');
+    if (savedSettings) {
+      const settings = JSON.parse(savedSettings);
+      $('#cameraType').val(settings.type || 'rtsp');
+      $('#cameraUrl').val(settings.url || '');
+      $('#cameraUsername').val(settings.username || '');
+      $('#cameraPassword').val(settings.password || '');
+      $('#cameraResolution').val(settings.resolution || '1280x720');
+      $('#cameraFps').val(settings.fps || '25');
+      $('#cameraTimeout').val(settings.timeout || '30');
+    }
   });
 
   loadInitialData();

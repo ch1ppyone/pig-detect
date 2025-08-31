@@ -1,0 +1,456 @@
+/* Стили для системы мониторинга свиней */
+:root {
+  --bg-color: #f8f9fa;
+  --card-bg: #ffffff;
+  --text-color: #212529;
+  --primary-color: #0d6efd;
+  --success-color: #198754;
+  --warning-color: #fd7e14;
+  --danger-color: #dc3545;
+  --border-color: #dee2e6;
+  --shadow: 0 2px 10px rgba(0,0,0,0.08);
+  --border-radius: 12px;
+}
+
+[data-theme="dark"] {
+  --bg-color: #1a1d20;
+  --card-bg: #2d3748;
+  --text-color: #ffffff;
+  --border-color: #495057;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+}
+
+/* Заголовок главной страницы */
+.main-header {
+  background: linear-gradient(135deg, var(--primary-color), #6610f2);
+  color: white;
+  padding: 1.5rem 0;
+  margin-bottom: 2rem;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+}
+
+/* Панель управления */
+.nav-controls {
+  background: var(--card-bg);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow);
+}
+
+/* Карточки */
+.dashboard-card {
+  background: var(--card-bg);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border-color);
+  transition: all 0.3s ease;
+  height: 100%;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+}
+
+/* KPI карточки */
+.kpi-card {
+  background: linear-gradient(135deg, var(--primary-color), #6610f2);
+  color: white;
+  text-align: center;
+  padding: 1.5rem;
+  border-radius: var(--border-radius);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi-gradient-1 {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+}
+
+.kpi-gradient-2 {
+  background: linear-gradient(135deg, #f093fb, #f5576c);
+}
+
+.kpi-gradient-3 {
+  background: linear-gradient(135deg, #4facfe, #00f2fe);
+}
+
+.kpi-gradient-4 {
+  background: linear-gradient(135deg, #43e97b, #38f9d7);
+}
+
+.kpi-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  opacity: 0.9;
+}
+
+.kpi-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.kpi-label {
+  font-size: 0.9rem;
+  opacity: 0.9;
+  font-weight: 500;
+}
+
+/* Пользовательский аватар */
+.user-avatar {
+  font-size: 2rem;
+  width: 50px;
+  height: 50px;
+  background: linear-gradient(135deg, var(--primary-color), #6610f2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+/* Карточки графиков */
+.chart-card {
+  background: rgba(var(--primary-color), 0.05);
+  border-radius: 8px;
+  padding: 1rem;
+  border: 1px solid rgba(var(--primary-color), 0.1);
+}
+
+/* Видео поток */
+#videoFeed {
+  border-radius: var(--border-radius);
+  border: 2px solid var(--border-color);
+  max-width: 100%;
+  box-shadow: var(--shadow);
+}
+
+/* Кнопки */
+.btn-custom {
+  background: linear-gradient(135deg, var(--success-color), #20c997);
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(25, 135, 84, 0.2);
+}
+
+.btn-custom:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(25, 135, 84, 0.3);
+}
+
+.btn-outline-custom {
+  border: 2px solid var(--primary-color);
+  color: var(--primary-color);
+  background: transparent;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.btn-outline-custom:hover {
+  background: var(--primary-color);
+  color: white;
+}
+
+/* Формы */
+.form-select, .form-control {
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  padding: 0.75rem;
+  transition: all 0.3s ease;
+}
+
+.form-select:focus, .form-control:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+}
+
+/* Модальные окна */
+.modal-content {
+  border-radius: var(--border-radius);
+  border: none;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.modal-header {
+  border-bottom: 1px solid var(--border-color);
+  border-radius: var(--border-radius) var(--border-radius) 0 0;
+}
+
+.modal-header.bg-primary {
+  background: linear-gradient(135deg, var(--primary-color), #6610f2) !important;
+  color: white;
+  border-bottom: none;
+}
+
+.modal-header.bg-success {
+  background: linear-gradient(135deg, var(--success-color), #20c997) !important;
+  color: white;
+  border-bottom: none;
+}
+
+.modal-header.bg-info {
+  background: linear-gradient(135deg, #0dcaf0, #6610f2) !important;
+  color: white;
+  border-bottom: none;
+}
+
+.modal-header.bg-warning {
+  background: linear-gradient(135deg, var(--warning-color), #fd7e14) !important;
+  color: white;
+  border-bottom: none;
+}
+
+/* Индикаторы статуса */
+.status-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 0.5rem;
+}
+
+.status-online {
+  background-color: var(--success-color);
+}
+
+.status-offline {
+  background-color: var(--danger-color);
+}
+
+/* Быстрые действия */
+.quick-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* Переключатель темной темы */
+#darkModeToggle {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow);
+}
+
+/* Информация о пользователе */
+.user-info {
+  background: var(--card-bg);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--border-color);
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+  .kpi-value {
+    font-size: 2rem;
+  }
+
+  .quick-actions {
+    flex-direction: column;
+  }
+
+  .quick-actions .btn {
+    width: 100%;
+  }
+}
+
+/* Анимации загрузки */
+.loading-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-color);
+  border-radius: 50%;
+  border-top-color: var(--primary-color);
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Таблицы */
+.table-hover tbody tr:hover {
+  background-color: rgba(0, 0, 0, 0.075);
+}
+
+/* Пустые состояния */
+.empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-color);
+  opacity: 0.6;
+}
+
+.empty-state i {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+/* Прогресс-бары */
+.progress {
+  height: 6px;
+  border-radius: 3px;
+}
+
+/* Уведомления */
+.alert {
+  border-radius: var(--border-radius);
+  border: none;
+}
+
+/* Навигация по страницам */
+.pagination-container {
+  overflow-x: auto;
+  white-space: nowrap;
+  padding-bottom: 10px;
+}
+
+.pagination {
+  display: inline-flex;
+  flex-wrap: nowrap;
+}
+
+/* Видео контейнер */
+.video-container {
+  position: relative;
+}
+
+.video-container .position-absolute {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Лог обучения */
+#trainingLog {
+  background: #1a1a1a;
+  color: #f8f8f2;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+/* Табы и навигация */
+.nav-tabs .nav-link {
+  border: none;
+  border-radius: var(--border-radius) var(--border-radius) 0 0;
+  color: var(--text-color);
+}
+
+.nav-tabs .nav-link.active {
+  background: var(--primary-color);
+  color: white;
+}
+
+/* Карточки в модальных окнах */
+.card {
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow);
+}
+
+.card-header {
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border-color);
+  border-radius: var(--border-radius) var(--border-radius) 0 0 !important;
+}
+
+/* Бейджи */
+.badge {
+  font-weight: 500;
+  padding: 0.4em 0.8em;
+}
+
+/* Формы в модальных окнах */
+.modal .form-floating {
+  margin-bottom: 1rem;
+}
+
+.modal .form-floating input,
+.modal .form-floating select {
+  border-radius: 8px;
+}
+
+/* Улучшенные кнопки */
+.btn-group .btn {
+  border-radius: 0;
+}
+
+.btn-group .btn:first-child {
+  border-radius: 8px 0 0 8px;
+}
+
+.btn-group .btn:last-child {
+  border-radius: 0 8px 8px 0;
+}
+
+/* Уведомления */
+.toast {
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+}
+
+/* Переходы и анимации */
+* {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Фокус для доступности */
+.btn:focus,
+.form-control:focus,
+.form-select:focus {
+  outline: none;
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* Кастомные скроллбары */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-color);
+}

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Регистрация - Система мониторинга свиней</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="manifest" href="/static/manifest.json">
+  <style>
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Arial', sans-serif;
+    }
+    .register-container {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 15px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+      padding: 40px;
+      max-width: 400px;
+      width: 100%;
+      backdrop-filter: blur(10px);
+    }
+    .register-header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .register-header h2 {
+      color: #333;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    .register-header p {
+      color: #666;
+      font-size: 14px;
+    }
+    .form-floating {
+      margin-bottom: 20px;
+    }
+    .form-floating input {
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      padding: 12px 16px;
+    }
+    .form-floating input:focus {
+      border-color: #667eea;
+      box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    .btn-register {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      border-radius: 10px;
+      padding: 12px 30px;
+      font-weight: 600;
+      color: white;
+      width: 100%;
+      transition: transform 0.2s;
+    }
+    .btn-register:hover {
+      transform: translateY(-2px);
+      color: white;
+    }
+    .alert {
+      border-radius: 10px;
+      border: none;
+    }
+    .form-check {
+      margin-bottom: 20px;
+    }
+    .back-link {
+      text-align: center;
+      margin-top: 20px;
+    }
+    .back-link a {
+      color: #667eea;
+      text-decoration: none;
+    }
+    .back-link a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="register-container">
+    <div class="register-header">
+      <h2>👤 Регистрация пользователя</h2>
+      <p>Создание нового пользователя системы</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST">
+      <div class="form-floating">
+        <input type="text" class="form-control" id="username" name="username" placeholder="Имя пользователя" required>
+        <label for="username">Имя пользователя</label>
+      </div>
+
+      <div class="form-floating">
+        <input type="password" class="form-control" id="password" name="password" placeholder="Пароль" required>
+        <label for="password">Пароль</label>
+      </div>
+
+      <div class="form-floating">
+        <input type="password" class="form-control" id="confirm_password" name="confirm_password" placeholder="Подтверждение пароля" required>
+        <label for="confirm_password">Подтверждение пароля</label>
+      </div>
+
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="is_admin" name="is_admin">
+        <label class="form-check-label" for="is_admin">
+          Администратор
+        </label>
+      </div>
+
+      <button type="submit" class="btn btn-register">Создать пользователя</button>
+    </form>
+
+    <div class="back-link">
+      <a href="{{ url_for('index') }}">← Вернуться к системе</a>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
